@@ -1,0 +1,27 @@
+INFO - 2024-11-07 21:00:44,190: Socket do servidor criado na porta: '6000'
+INFO - 2024-11-07 21:00:48,418: Servidor foi inicializado!
+INFO - 2024-11-07 21:01:29,326: Remetente: ('127.0.0.1', 60916) - Recebido: 'OPTION-2-Chat'
+INFO - 2024-11-07 21:01:29,351: Remetente: ('127.0.0.1', 60916) - Chat recebido: ''
+INFO - 2024-11-07 21:01:39,680: Destinatário: ('127.0.0.1', 60916) - Chat enviado:  'sair'
+WARNING - 2024-11-07 21:01:39,681: 'OK-6-Saída do Chat pelo Servidor!'
+ERROR - 2024-11-07 21:01:39,692: Cliente removido:  ('127.0.0.1', 60916)
+INFO - 2024-11-07 21:02:39,514: Socket finalizado!
+INFO - 2024-11-07 21:02:52,152: Socket do servidor criado na porta: '6000'
+INFO - 2024-11-07 21:02:54,541: Servidor foi inicializado!
+INFO - 2024-11-07 21:03:03,191: Remetente: ('127.0.0.1', 60923) - Recebido: 'OPTION-2-Chat'
+INFO - 2024-11-07 21:03:04,797: Remetente: ('127.0.0.1', 60923) - Chat recebido: 'oi'
+INFO - 2024-11-07 21:03:10,077: Destinatário: ('127.0.0.1', 60923) - Chat enviado:  'blz?'
+INFO - 2024-11-07 21:03:14,229: Remetente: ('127.0.0.1', 60923) - Chat recebido: 'sair'
+WARNING - 2024-11-07 21:03:14,229: 'OK-6-Saída do Chat pelo Cliente!'
+INFO - 2024-11-07 21:03:20,191: Remetente: ('127.0.0.1', 60923) - Recebido: 'OPTION-3-Desconectando do Servidor'
+INFO - 2024-11-07 21:03:20,191: Remetente: ('127.0.0.1', 60923) - Recebido: 'OK-8-Desconectar servidor'
+WARNING - 2024-11-07 21:03:20,191: Cliente desconectado: ('127.0.0.1', 60923)
+INFO - 2024-11-07 21:03:20,191: Destinatário: ('127.0.0.1', 60923) - Enviado:  'OK-8-Desconectado'
+INFO - 2024-11-07 21:04:33,284: Remetente: ('127.0.0.1', 60934) - Recebido: 'OPTION-3-Desconectando do Servidor'
+INFO - 2024-11-07 21:04:33,285: Remetente: ('127.0.0.1', 60934) - Recebido: 'OK-8-Desconectar servidor'
+WARNING - 2024-11-07 21:04:33,285: Cliente desconectado: ('127.0.0.1', 60934)
+INFO - 2024-11-07 21:04:33,285: Destinatário: ('127.0.0.1', 60934) - Enviado:  'OK-8-Desconectado'
+INFO - 2024-11-07 21:09:09,018: Remetente: ('127.0.0.1', 61018) - Recebido: 'OPTION-3-Desconectando do Servidor'
+INFO - 2024-11-07 21:09:09,018: Remetente: ('127.0.0.1', 61018) - Recebido: 'OK-8-Desconectar servidor'
+WARNING - 2024-11-07 21:09:09,018: Cliente desconectado: ('127.0.0.1', 61018)
+INFO - 2024-11-07 21:09:09,018: Destinatário: ('127.0.0.1', 61018) - Enviado:  'OK-8-Desconectado'
