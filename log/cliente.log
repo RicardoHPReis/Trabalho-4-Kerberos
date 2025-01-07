@@ -1,44 +1,6 @@
-INFO - 2024-11-07 21:01:22,305: Iniciando conexão com Servidor
-INFO - 2024-11-07 21:01:22,318: Cliente conectado ao servidor: ('127.0.0.1', 6000)
-INFO - 2024-11-07 21:02:39,497: Iniciando conexão com Servidor
-INFO - 2024-11-07 21:02:39,508: Cliente conectado ao servidor: ('127.0.0.1', 6000)
-INFO - 2024-11-07 21:02:46,321: Deletando Socket:  ('127.0.0.1', 6000)
-INFO - 2024-11-07 21:02:58,905: Iniciando conexão com Servidor
-INFO - 2024-11-07 21:02:58,915: Cliente conectado ao servidor: ('127.0.0.1', 6000)
-INFO - 2024-11-07 21:03:03,191: Destinatário: ('127.0.0.1', 6000) - Enviado:  'OPTION-2-Chat'
-INFO - 2024-11-07 21:03:04,797: Destinatário: ('127.0.0.1', 6000) - Chat enviado:  'oi'
-INFO - 2024-11-07 21:03:10,077: Remetente: ('127.0.0.1', 6000) - Chat recebido: 'blz?'
-INFO - 2024-11-07 21:03:14,229: Destinatário: ('127.0.0.1', 6000) - Chat enviado:  'sair'
-WARNING - 2024-11-07 21:03:14,229: 'OK-6-Saída do Chat pelo Cliente!'
-INFO - 2024-11-07 21:03:20,191: Destinatário: ('127.0.0.1', 6000) - Enviado:  'OPTION-3-Desconectando do Servidor'
-INFO - 2024-11-07 21:03:20,191: Destinatário: ('127.0.0.1', 6000) - Enviado:  'OK-8-Desconectar servidor'
-INFO - 2024-11-07 21:03:20,191: Remetente: ('127.0.0.1', 6000) - Recebido: 'OK-8-Desconectado'
-INFO - 2024-11-07 21:03:22,214: Deletando Socket:  ('127.0.0.1', 7000)
-INFO - 2024-11-07 21:04:28,945: Iniciando conexão com Servidor
-INFO - 2024-11-07 21:04:28,954: Cliente conectado ao servidor: ('127.0.0.1', 6000)
-INFO - 2024-11-07 21:04:33,284: Destinatário: ('127.0.0.1', 6000) - Enviado:  'OPTION-3-Desconectando do Servidor'
-INFO - 2024-11-07 21:04:33,285: Destinatário: ('127.0.0.1', 6000) - Enviado:  'OK-8-Desconectar servidor'
-INFO - 2024-11-07 21:04:33,285: Remetente: ('127.0.0.1', 6000) - Recebido: 'OK-8-Desconectado'
-INFO - 2024-11-07 21:04:35,305: Deletando Socket:  ('127.0.0.1', 7000)
-INFO - 2024-11-07 21:09:05,304: Iniciando conexão com Servidor
-INFO - 2024-11-07 21:09:05,314: Cliente conectado ao servidor: ('127.0.0.1', 6000)
-INFO - 2024-11-07 21:09:09,018: Destinatário: ('127.0.0.1', 6000) - Enviado:  'OPTION-3-Desconectando do Servidor'
-INFO - 2024-11-07 21:09:09,018: Destinatário: ('127.0.0.1', 6000) - Enviado:  'OK-8-Desconectar servidor'
-INFO - 2024-11-07 21:09:09,018: Remetente: ('127.0.0.1', 6000) - Recebido: 'OK-8-Desconectado'
-INFO - 2024-11-07 21:09:11,027: Deletando Socket:  ('127.0.0.1', 6000)
-INFO - 2024-11-07 21:09:11,035: Cliente conectado ao servidor: ('127.0.0.1', 7000)
-INFO - 2024-11-07 21:09:18,524: Destinatário: ('127.0.0.1', 7000) - Enviado:  'OPTION-2-Chat'
-INFO - 2024-11-07 21:09:19,706: Destinatário: ('127.0.0.1', 7000) - Chat enviado:  'oi'
-INFO - 2024-11-07 21:09:22,532: Remetente: ('127.0.0.1', 7000) - Chat recebido: 'oi'
-INFO - 2024-11-07 21:09:25,644: Destinatário: ('127.0.0.1', 7000) - Chat enviado:  'sair'
-WARNING - 2024-11-07 21:09:25,644: 'OK-6-Saída do Chat pelo Cliente!'
-INFO - 2024-11-07 21:09:27,139: Destinatário: ('127.0.0.1', 7000) - Enviado:  'OPTION-3-Desconectando do Servidor'
-INFO - 2024-11-07 21:09:27,139: Destinatário: ('127.0.0.1', 7000) - Enviado:  'OK-8-Desconectar servidor'
-INFO - 2024-11-07 21:09:27,141: Remetente: ('127.0.0.1', 7000) - Recebido: 'OK-8-Desconectado'
-INFO - 2024-11-07 21:09:29,150: Deletando Socket:  ('127.0.0.1', 7000)
-INFO - 2024-11-07 21:09:29,178: Cliente conectado ao servidor: ('127.0.0.1', 8000)
-INFO - 2024-11-07 21:09:35,104: Destinatário: ('127.0.0.1', 8000) - Enviado:  'OPTION-3-Desconectando do Servidor'
-INFO - 2024-11-07 21:09:35,104: Destinatário: ('127.0.0.1', 8000) - Enviado:  'OK-8-Desconectar servidor'
-INFO - 2024-11-07 21:09:35,105: Remetente: ('127.0.0.1', 8000) - Recebido: 'OK-8-Desconectado'
-INFO - 2024-11-07 21:09:37,114: Deletando Socket:  ('127.0.0.1', 8000)
-INFO - 2024-11-07 21:09:37,116: Deletando Socket:  ('127.0.0.1', 8000)
+INFO - 2025-01-06 23:07:31,656: Iniciando conexão com Servidor
+INFO - 2025-01-06 23:07:31,670: Cliente conectado ao servidor: ('127.0.0.1', 6000)
+INFO - 2025-01-06 23:07:32,438: Destinatário: ('127.0.0.1', 6000) - Enviado:  'OPTION-1-Conectar no Serviço'
+INFO - 2025-01-06 23:07:34,663: Destinatário: ('127.0.0.1', 6000) - Enviado:  '{'usuario': 'oi', 'dados': 'TqMGsHPK7q4+axw7QbsTkPxAPL2zeIrvQrEl2CepRlTOOsEInfiMnmvnaJx8+3HxbpfLI6i8B4XOFZHUtWjCMMxrN1z68g962CG8DMaNDgDbwAdHB10bkbAOwAIKKSeWL5er39fT2kjJOS0C8MGxzRWNHJvgg7+o8ixbXNh4Yt8mw6j8ZdPksvuwIA0IbINmJMV5eAAGzqXzsLmq'}'
+INFO - 2025-01-06 23:07:34,664: Remetente: ('127.0.0.1', 6000) - Recebido: '{'auth': 'WnNwqVD5q+M3tK7UvqHDBN1KRiiMv5OlD3akr7I5EfMbeAj91Vnrg7PITtxjUV24lPL7upYBc+9OB8rAhfbcyr30bqRdglVbpFWikXcIrvebKbDre9iiUe2Y9lXCNZd50wso1wNZzuxQ5Plz8n+wkmBr8wCtbqD3VlFuvtjLriukuvY9x2DbsngGHG+oY85RV/xqaMxoC9OQgWbOP0oPXcznp9XCGGahcheQ8PdDOF5yv9Shy/Mumbb4bhYfE5cdJ01Oiq4TVwT+sayEAIhYE5lf+c8jbhUeFu75KI7CXQFpBvbyQeM1xCf/kfGYflr4qFcRSITK/YzBKCjDfQ69/KkH83zaCBGEaXsIANPwqzGDNQhtGZQ4qWW8bI70KqFKLv0O5yGTuCM=', 'ticket': 'E+OamVli6rsxjmxSsWVUEhbWyeLZPY+j4tFsKs0Jq2K5yurRCSBmk0Nh2KjJVJ/7muHxchnRotCszIj7YMTj2uaXW4DOlbG38CnGUUKiK3ESJfw2Dp0P+BdfNcYHWvhs02iqk80YqAVEQCEJSK8/nOnDflNvdkIFKcIMmroOcZOx9yPk2qdua25wEdugXbVoEQROtZq+GcyDLrYRg/PRFuRlsAfmEuKhrbfPJgWEwtOl9RXYHagUKQyL0hZ2gg706ZAGNEr5u+wtPU8OnhodJkxjc3eTfaMGQ710F1/ar9uRQ8O+BRYbb5fELWOEENwLb3xo+5McUk1JB+XCNYj00w35tUGjm3fa//PjNMToFffXdj0gXyLurcFiLhlzuyztcGqaLRjl7cyZvBk2xDz9pk6P4jMSk6Blwcy2wy9v8ZTJtETVPtPUD+yhyne+1kZUG8/BXydadd2pQii5WvTLQg=='}'
+INFO - 2025-01-06 23:07:56,688: Deletando Socket:  ('127.0.0.1', 6000)

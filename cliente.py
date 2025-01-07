@@ -1,7 +1,15 @@
 import socket as s
 import time as t
 import logging as l
+import datetime as d
 import hashlib as h
+import base64 as b64
+import json as j
+import hashlib as h
+import base64 as b64
+from Cryptodome.Cipher import AES
+import Cryptodome.Random as r
+import Crypto.Random.random as ri
 import os
 
 
@@ -14,6 +22,14 @@ class Cliente:
         self.__porta_do_server = 0
         self.__endereco_IP = (self.__NOME_DO_SERVER, self.__porta_do_server)
         self.__TAM_BUFFER = 2048
+        self.__usuario = ""
+        self.__servico = ""
+        self.__chave = ""
+        self.__TEMPO_SERVICO = 3600
+        self.__tempo_autorizado = 0
+        self.__ticket_as = ""
+        self.__ticket_tgs = ""
+        self.__numero_aleatorio = ri.randint(1000,10000)
     
     
     def __del__(self):
@@ -46,23 +62,32 @@ class Cliente:
             self.__conexao_socket.close()
 
 
-    def chat_envio(self, mensagem : str):
-        try:
-            self.__conexao_socket.send(mensagem.encode())
-            self.logger.info(f"Destinatário: {self.__endereco_IP} - Chat enviado:  '{mensagem}'")
-        except:
-            self.logger.error(f"Removido do Servidor:  {self.__endereco_IP}")
-            self.__conexao_socket.close()
+    def criptografar(self, payload:bytes, chave:bytes) -> bytes:
+        pad = lambda s: s + (AES.block_size - len(s) % AES.block_size) * chr(AES.block_size - len(s) % AES.block_size)
         
+        payload = b64.b64encode(pad(payload).encode('utf8'))
+        iv = r.get_random_bytes(AES.block_size)
+        cifra = AES.new(chave, AES.MODE_CFB, iv)
+        texto_cripto = b64.b64encode(iv + cifra.encrypt(payload))
+        
+        iv_2 = r.new().read(AES.block_size)
+        aes = AES.new(chave, AES.MODE_CFB, iv_2)
+        criptografado = b64.b64encode(iv_2 + aes.encrypt(texto_cripto))
+        return criptografado
 
-    def chat_recebimento(self):
-        try:
-            mensagem = self.__conexao_socket.recv(self.__TAM_BUFFER).decode('utf-8')
-            self.logger.info(f"Remetente: {self.__endereco_IP} - Chat recebido: '{mensagem}'")
-            return mensagem
-        except:
-            self.logger.error(f"Removido do Servidor:  {self.__endereco_IP}")
-            self.__conexao_socket.close()
+
+    def descriptografar(self, criptografado:bytes, chave:bytes) -> str:
+        unpad = lambda s: s[:-ord(s[-1:])]
+        
+        criptografado = b64.b64decode(criptografado)
+        iv_2 = criptografado[:AES.block_size]
+        aes = AES.new(chave, AES.MODE_CFB, iv_2)
+        texto_cripto = b64.b64decode(aes.decrypt(criptografado[AES.block_size:]))
+        
+        iv = texto_cripto[:AES.block_size]
+        cifra = AES.new(chave, AES.MODE_CFB, iv)
+        texto = unpad(b64.b64decode(cifra.decrypt(texto_cripto[AES.block_size:])).decode('utf8'))
+        return texto
 
 
     def inicializar(self):
@@ -111,150 +136,75 @@ class Cliente:
             return
                 
 
-    def escolher_arquivo(self):
-        conjunto_arquivos = []
-        num_arquivos = int(self.mensagem_recebimento())
+    def enviar_dados_AS(self):
+        self.__usuario = input("Digite o seu usuário: ")
+        self.__chave = h.sha256(input("Digite sua senha: ").encode()).digest()
+        self.__servico = input("Digite seu serviço: ")
         
-        if not isinstance(num_arquivos, int):
-            self.mensagem_envio('ERROR-1-Má requisição')
-        elif num_arquivos < 0:
-            self.mensagem_envio('ERROR-2-Tamanho incongruente')
-        else:
-            self.mensagem_envio('OK-1-Confirmação')
-
-        i = 0
-        while i < num_arquivos:
-            recv_arquivo = self.mensagem_recebimento()
-            self.mensagem_envio(f"ACK-{i+1}")
-            conjunto_arquivos.append(recv_arquivo)
-            i+=1
-            
-            
-        while True:
-            os.system('cls' if os.name == 'nt' else 'clear')
-            self.titulo()
-            print('Arquivos disponíveis no servidor:')
-            for arquivo in conjunto_arquivos:
-                print(arquivo)
-
-            nome_arquivo = input("\nDigite o nome do arquivo que você deseja receber: ")
-            
-            self.mensagem_envio(nome_arquivo)
-            
-            ok_arq = self.mensagem_recebimento().split("-")
+        dados_sensiveis = {"servico": self.__servico, "tempo_servico": self.__tempo_autorizado, "numero_aleatorio": self.__numero_aleatorio}
+        dados_criptografados = self.criptografar(str(dados_sensiveis), self.__chave)
+        envio = {"usuario": self.__usuario, "dados": dados_criptografados.decode('utf8')}
+        self.mensagem_envio(str(envio))
         
-            if(ok_arq[0] == 'OK'):
-                break
-            else:
-                print('A escolha precisa estar nas opções acima!')
-                t.sleep(2)
-                
-        return nome_arquivo
-
-
-    def descriptografar_arquivo(self, pacote : bytes, hash_inicio : int, hash_final : int) -> tuple[bytes, bytes, bytes]:
-        nr_pacote = pacote[0:3]
-        parte_checksum = pacote[hash_inicio:hash_final]
-        data = pacote[hash_final+1 :]
-
-        return nr_pacote, parte_checksum, data
-
-
-    def requisitar_arquivo(self):
-        nome_arquivo = self.escolher_arquivo()
+        resposta = self.mensagem_recebimento()
+        resposta = j.loads(resposta.replace("'", "\""))
+        autenticacao = self.descriptografar(resposta['auth'], self.__chave)
+        print(autenticacao)
+        self.__ticket_as = resposta['ticket']
+        print(self.__ticket_as)
         
-        archive = nome_arquivo.split(".")
-        nome_arquivo = archive[0] + "_cliente." + archive[1]
-        dados = self.mensagem_recebimento().split("-")
-        self.mensagem_envio("OK-1-Confirmação")
+
+    def enviar_dados_TGS(self):
+        self.__numero_aleatorio = ri.randint(1000, 10000)
+        dados_sensiveis = {"servico": str(self.__servico), "tempo_servico": self.__TEMPO_SERVICO, "numero_aleatorio": self.__numero_aleatorio}
+        dados_criptografados = self.criptografar(str(dados_sensiveis), self.__chave)
+        dados = {"usuario": str(self.__usuario), "dados": dados_criptografados}
+        self.mensagem_envio(dados)
+
+        # construct the ticket grant request for service payload
+        tgr_payload = {"servico": service_id, "lifetime_of_ticket": "2"}
+        # payloads put together to send to ticket granting sever
+        payload = {"authenticator": auth_cipher, "tgr": str(tgr_payload), "tgt": ticket_granting_ticket}
+    
+    
+    def enviar_dados_servico(self):
+        self.__numero_aleatorio = r.randint()
+        dados_vulneraveis = {"usuario": str(self.__usuario), "servico": str(self.__servico), "tempo_servico": self.__tempo_autorizado, "numero_aleatorio": self.__numero_aleatorio}
+        dados = self.criptografar(dados_vulneraveis, self.__chave)
+        self.mensagem_envio(dados)
         
-        if(dados[0] == "OK"):
-            os.makedirs("./Recebidos", exist_ok=True)
-            
-            num_pacotes = int(dados[2])
-            num_digitos = int(dados[3])
-            tam_buffer = int(dados[4])
-            checksum = dados[5]
-            
-            hash_inicio = num_digitos + 1
-            hash_final = hash_inicio + 16
-            checksum_completo = h.md5()
-            
-            with open(os.path.join("./Recebidos", nome_arquivo), "wb") as arquivo:
-                for i in range(0, num_pacotes):
-                    packet = self.__conexao_socket.recv(tam_buffer)
+        # We need to decrypt the tgs_ack_ticket to get the service_session_key which we will use to communicate 
+        # with the service from here on out
+        tgs_ack_ticket = self.descriptografar(tgs_recieved_payload.get('tgs_ack_ticket'), tgs_session_key)
+        service_ticket = tgs_recieved_payload.get("service_ticket")
+        session_key = tgs_ack_ticket.get("service_session_key")
+        service_payload = {"service_ticket": service_ticket, "username": user_name}
 
-                    nr_pacote, parte_checksum, data = self.descriptografar_arquivo(packet, hash_inicio, hash_final)
-
-                    while h.md5(data).digest() != parte_checksum:
-                        try:
-                            self.__conexao_socket.send(b"NOK")
-                            self.logger.warning(f"Destinatário: {self.__endereco_IP} - Enviado: NOK no pacote '{i+1}'")
-                        except:
-                            self.logger.error(f"Removido do Servidor:  {self.__endereco_IP}")
-                            self.__conexao_socket.close()
-                        
-                        packet = self.__conexao_socket.recv(tam_buffer)
-                        self.logger.warning(f"Destinatário: {self.__endereco_IP} - Recebido novamente: Pacote '{i+1}'")
-                        
-                        nr_pacote, parte_checksum, data = self.descriptografar_arquivo(packet, hash_inicio, hash_final)
-
-                    checksum_completo.update(data)
-                    arquivo.write(data)
-                    self.mensagem_envio(f"ACK-{i+1}")
-            
-            arquivo.close()
-            
-            os.system('cls' if os.name == 'nt' else 'clear')
-            self.titulo()
-            if checksum_completo.hexdigest() == checksum:
-                print("Arquivo transferido com sucesso!")
-                self.logger.info(f"'OK-4-Arquivo transferido com sucesso!'")
-            else:
-                print("Transferência de arquivo não teve sucesso!")
-                self.logger.error(f"'ERROR-4-Transferência de arquivo não teve sucesso!'")
-            t.sleep(2)
-
-
-    def chat_servidor(self):
-        os.system('cls' if os.name == 'nt' else 'clear')
-        self.titulo()
-        print("CHAT SERVIDOR X CLIENTE\n\n")
-        cliente_msg = ""
-        servidor_msg = ""
-        
-        while servidor_msg.lower() != "sair":
-            cliente_msg = input(f"<{self.__endereco_IP}> ")
-            self.chat_envio(cliente_msg[:1024])
-            if cliente_msg.lower() == "sair":
-                self.logger.warning(f"'OK-6-Saída do Chat pelo Cliente!'")
-                break
-
-            servidor_msg = self.chat_recebimento()
-            print(f"<Servidor> {servidor_msg}")
-            if servidor_msg.lower() == "sair":
-                self.logger.warning(f"'OK-6-Saída do Chat pelo Servidor!'")
-            
 
     def opcoes_cliente(self):
-        os.system('cls' if os.name == 'nt' else 'clear')
+        #os.system('cls' if os.name == 'nt' else 'clear')
         self.titulo()
-        print('1) Solicitar arquivo.')
-        print('2) Chat.')
-        print('3) Fechar conexão com o Servidor.\n')
+        print('1) Conectar no Kerberos.')
+        print('2) Conectar no Serviço.')
+        print('3) Criar novo cliente.')
+        print('4) Fechar conexão.\n')
         
         opcao = int(input("Escolha uma opção: "))
         match opcao:
             case 1:
-                self.mensagem_envio('OPTION-1-Requisição de arquivo')
-                self.requisitar_arquivo()
+                self.mensagem_envio('OPTION-1-Conectar no Serviço')
+                self.enviar_dados_AS()
                 self.opcoes_cliente()
             case 2:
-                self.mensagem_envio('OPTION-2-Chat')
-                self.chat_servidor()
+                self.mensagem_envio('OPTION-2-Conectar no Serviço')
+                self.enviar_dados_servico()
                 self.opcoes_cliente()
             case 3:
-                self.mensagem_envio('OPTION-3-Desconectando do Servidor')
+                self.mensagem_envio('OPTION-3-Criar novo cliente')
+                self.enviar_dados_AS()
+                self.opcoes_cliente()
+            case 4:
+                self.mensagem_envio('OPTION-4-Desconectando do Servidor')
                 self.fechar_conexao()
             case _:
                 print('A escolha precisa estar nas opções acima!')
@@ -292,8 +242,8 @@ class Cliente:
 
         if iniciar_conexao:
             self.conectar_servidor(6000)
-            self.conectar_servidor(7000)
-            self.conectar_servidor(8000)
+            #self.conectar_servidor(7000)
+            #self.conectar_servidor(8000)
         else:
             print("Saindo do sistema.")
             t.sleep(3)

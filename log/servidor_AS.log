@@ -1,27 +1,7 @@
-INFO - 2024-11-07 21:00:44,190: Socket do servidor criado na porta: '6000'
-INFO - 2024-11-07 21:00:48,418: Servidor foi inicializado!
-INFO - 2024-11-07 21:01:29,326: Remetente: ('127.0.0.1', 60916) - Recebido: 'OPTION-2-Chat'
-INFO - 2024-11-07 21:01:29,351: Remetente: ('127.0.0.1', 60916) - Chat recebido: ''
-INFO - 2024-11-07 21:01:39,680: Destinatário: ('127.0.0.1', 60916) - Chat enviado:  'sair'
-WARNING - 2024-11-07 21:01:39,681: 'OK-6-Saída do Chat pelo Servidor!'
-ERROR - 2024-11-07 21:01:39,692: Cliente removido:  ('127.0.0.1', 60916)
-INFO - 2024-11-07 21:02:39,514: Socket finalizado!
-INFO - 2024-11-07 21:02:52,152: Socket do servidor criado na porta: '6000'
-INFO - 2024-11-07 21:02:54,541: Servidor foi inicializado!
-INFO - 2024-11-07 21:03:03,191: Remetente: ('127.0.0.1', 60923) - Recebido: 'OPTION-2-Chat'
-INFO - 2024-11-07 21:03:04,797: Remetente: ('127.0.0.1', 60923) - Chat recebido: 'oi'
-INFO - 2024-11-07 21:03:10,077: Destinatário: ('127.0.0.1', 60923) - Chat enviado:  'blz?'
-INFO - 2024-11-07 21:03:14,229: Remetente: ('127.0.0.1', 60923) - Chat recebido: 'sair'
-WARNING - 2024-11-07 21:03:14,229: 'OK-6-Saída do Chat pelo Cliente!'
-INFO - 2024-11-07 21:03:20,191: Remetente: ('127.0.0.1', 60923) - Recebido: 'OPTION-3-Desconectando do Servidor'
-INFO - 2024-11-07 21:03:20,191: Remetente: ('127.0.0.1', 60923) - Recebido: 'OK-8-Desconectar servidor'
-WARNING - 2024-11-07 21:03:20,191: Cliente desconectado: ('127.0.0.1', 60923)
-INFO - 2024-11-07 21:03:20,191: Destinatário: ('127.0.0.1', 60923) - Enviado:  'OK-8-Desconectado'
-INFO - 2024-11-07 21:04:33,284: Remetente: ('127.0.0.1', 60934) - Recebido: 'OPTION-3-Desconectando do Servidor'
-INFO - 2024-11-07 21:04:33,285: Remetente: ('127.0.0.1', 60934) - Recebido: 'OK-8-Desconectar servidor'
-WARNING - 2024-11-07 21:04:33,285: Cliente desconectado: ('127.0.0.1', 60934)
-INFO - 2024-11-07 21:04:33,285: Destinatário: ('127.0.0.1', 60934) - Enviado:  'OK-8-Desconectado'
-INFO - 2024-11-07 21:09:09,018: Remetente: ('127.0.0.1', 61018) - Recebido: 'OPTION-3-Desconectando do Servidor'
-INFO - 2024-11-07 21:09:09,018: Remetente: ('127.0.0.1', 61018) - Recebido: 'OK-8-Desconectar servidor'
-WARNING - 2024-11-07 21:09:09,018: Cliente desconectado: ('127.0.0.1', 61018)
-INFO - 2024-11-07 21:09:09,018: Destinatário: ('127.0.0.1', 61018) - Enviado:  'OK-8-Desconectado'
+INFO - 2025-01-06 23:07:29,061: Socket do servidor criado na porta: '6000'
+INFO - 2025-01-06 23:07:29,610: Servidor foi inicializado!
+INFO - 2025-01-06 23:07:32,438: Remetente: ('127.0.0.1', 65231) - Recebido: 'OPTION-1-Conectar no Serviço'
+INFO - 2025-01-06 23:07:34,663: Remetente: ('127.0.0.1', 65231) - Recebido: '{'usuario': 'oi', 'dados': 'TqMGsHPK7q4+axw7QbsTkPxAPL2zeIrvQrEl2CepRlTOOsEInfiMnmvnaJx8+3HxbpfLI6i8B4XOFZHUtWjCMMxrN1z68g962CG8DMaNDgDbwAdHB10bkbAOwAIKKSeWL5er39fT2kjJOS0C8MGxzRWNHJvgg7+o8ixbXNh4Yt8mw6j8ZdPksvuwIA0IbINmJMV5eAAGzqXzsLmq'}'
+INFO - 2025-01-06 23:07:34,664: Destinatário: ('127.0.0.1', 65231) - Enviado:  '{'auth': 'WnNwqVD5q+M3tK7UvqHDBN1KRiiMv5OlD3akr7I5EfMbeAj91Vnrg7PITtxjUV24lPL7upYBc+9OB8rAhfbcyr30bqRdglVbpFWikXcIrvebKbDre9iiUe2Y9lXCNZd50wso1wNZzuxQ5Plz8n+wkmBr8wCtbqD3VlFuvtjLriukuvY9x2DbsngGHG+oY85RV/xqaMxoC9OQgWbOP0oPXcznp9XCGGahcheQ8PdDOF5yv9Shy/Mumbb4bhYfE5cdJ01Oiq4TVwT+sayEAIhYE5lf+c8jbhUeFu75KI7CXQFpBvbyQeM1xCf/kfGYflr4qFcRSITK/YzBKCjDfQ69/KkH83zaCBGEaXsIANPwqzGDNQhtGZQ4qWW8bI70KqFKLv0O5yGTuCM=', 'ticket': 'E+OamVli6rsxjmxSsWVUEhbWyeLZPY+j4tFsKs0Jq2K5yurRCSBmk0Nh2KjJVJ/7muHxchnRotCszIj7YMTj2uaXW4DOlbG38CnGUUKiK3ESJfw2Dp0P+BdfNcYHWvhs02iqk80YqAVEQCEJSK8/nOnDflNvdkIFKcIMmroOcZOx9yPk2qdua25wEdugXbVoEQROtZq+GcyDLrYRg/PRFuRlsAfmEuKhrbfPJgWEwtOl9RXYHagUKQyL0hZ2gg706ZAGNEr5u+wtPU8OnhodJkxjc3eTfaMGQ710F1/ar9uRQ8O+BRYbb5fELWOEENwLb3xo+5McUk1JB+XCNYj00w35tUGjm3fa//PjNMToFffXdj0gXyLurcFiLhlzuyztcGqaLRjl7cyZvBk2xDz9pk6P4jMSk6Blwcy2wy9v8ZTJtETVPtPUD+yhyne+1kZUG8/BXydadd2pQii5WvTLQg=='}'
+INFO - 2025-01-06 23:07:56,688: Remetente: ('127.0.0.1', 65231) - Recebido: ''
+INFO - 2025-01-06 23:08:01,690: Socket finalizado!

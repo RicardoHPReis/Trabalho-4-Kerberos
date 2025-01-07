@@ -1,11 +1,17 @@
 import socket as s
 import time as t
+import datetime as d
+import string as st
 import logging as l
 import threading as th
 import hashlib as h
+from Crypto.Cipher import AES
+import Crypto.Random as r
+import Crypto.Random.random as ri
+from Crypto.Util.Padding import pad, unpad
 import os
 
-
+# Ticket
 class Servidor_TGS:
     def __init__(self):
         self.logger = l.getLogger(__name__)
@@ -15,11 +21,13 @@ class Servidor_TGS:
         self.__PORTA_DO_SERVER = 7000
         self.__TAM_BUFFER = 2048
         self.__ENDERECO_IP = (self.__NOME_DO_SERVER, self.__PORTA_DO_SERVER)
-        
+        self.__CHAVE_AS = "S0m3MA5T3RK3YY"
+        self.__CHAVE_ALEATORIA = ''.join([ri.choice(st.ascii_letters + st.digits) for n in range(16)])[0:16]
+        self.__CHAVE_SERVICO = "secretsecret"
+        self.__TEMPO_PERMITIDO = 1800
+        self.__numero_aleatorio = r.randint()
+        self.__chave_sessao_servico = ""
         self.__clientes = []
-        
-        
-        self.__clientes = []        
 
         self.__server_socket = s.socket(s.AF_INET, s.SOCK_STREAM)
         self.__server_socket.bind(self.__ENDERECO_IP)
@@ -61,26 +69,84 @@ class Servidor_TGS:
         except:
             self.logger.error(f"Cliente removido:  {endereco}")
             self.__clientes.remove(cliente_socket)
-
-
-    def chat_envio(self, cliente_socket : s.socket, endereco:tuple, mensagem : str):
-        try:
-            cliente_socket.send(mensagem.encode())
-            self.logger.info(f"Destinatário: {endereco} - Chat enviado:  '{mensagem}'")
-        except:
-            self.logger.error(f"Cliente removido do chat:  {endereco}")
-            self.__clientes.remove(cliente_socket)
         
-
-    def chat_recebimento(self, cliente_socket : s.socket, endereco:tuple):
-        try:
-            mensagem = cliente_socket.recv(self.__TAM_BUFFER).decode('utf-8')
-            self.logger.info(f"Remetente: {endereco} - Chat recebido: '{mensagem}'")
-            return mensagem
-        except:
-            self.logger.error(f"Cliente removido do chat: {endereco}")
-            self.__clientes.remove(cliente_socket)
+    
+    def criptografar(self, cliente_socket:s.socket, endereco:tuple, payload, senha_secreta, vetor_inicial):
+        self.mensagem_envio(cliente_socket, endereco, f"{str(payload)} - {senha_secreta} - {vetor_inicial}")
         
+        padded_senha_secreta = senha_secreta.ljust((len(senha_secreta) // 16 + 1) * 16).encode('utf8')
+        padded_vetor_inicial = vetor_inicial.ljust((len(vetor_inicial) // 16 + 1) * 16).encode('utf8')
+        
+        cifra = AES.new(padded_senha_secreta, AES.MODE_CFB, padded_vetor_inicial)
+        criptografado_payload = cifra.encrypt(str(payload).encode('utf8'))
+        self.mensagem_envio(cliente_socket, endereco, str(criptografado_payload.hex()))
+        return criptografado_payload.hex()
+
+
+    def descriptografar(self, cliente_socket:s.socket, endereco:tuple, payload, senha_secreta, vetor_inicial):
+        self.mensagem_envio(cliente_socket, endereco, f"{str(payload)} - {senha_secreta} - {vetor_inicial}")
+        payload_bytes = bytes.fromhex(payload)
+        
+        padded_senha_secreta = senha_secreta.ljust((len(senha_secreta) // 16 + 1) * 16).encode('utf8')
+        padded_vetor_inicial = vetor_inicial.ljust((len(vetor_inicial) // 16 + 1) * 16).encode('utf8')
+        
+        cifra = AES.new(padded_senha_secreta, AES.MODE_CFB, padded_vetor_inicial)
+        payload_descriptografado = cifra.decrypt(payload_bytes)
+        descriptografado_str = payload_descriptografado.decode('utf8').rstrip()
+        
+        self.mensagem_envio(cliente_socket, endereco, str(descriptografado_str))
+        
+        return descriptografado_str 
+
+
+    def verificar(self, cliente_socket:s.socket, endereco:tuple, authenticator, tgt, tgr):
+        mensagem = self.mensagem_recebimento(cliente_socket, endereco)
+        dados = self.descriptografar(cliente_socket, endereco, mensagem, self.__CHAVE_CLIENTE)
+        dados = dict(dados)
+        
+        service_secret_key = fetched_service.get_secret_key()
+        if service_secret_key:
+            status, fetched_tgs = self.db.fetch_service("tgs")
+            tgs_secret_key = fetched_tgs.get_secret_key()
+            if tgs_secret_key:
+                ticket_granting_ticket_plain = self.descriptografar(tgt, tgs_secret_key, self.master_key)
+                print("Received TGT from Client obtained from Authentication Server")
+            else:
+                print("Tgs secret key or service not found")
+
+            authenticator_plain = self.descriptografar(authenticator, ticket_granting_ticket_plain.get('tgs_session_key'), self.master_key)
+
+            # compare the username from authenticator as well as tgt
+            if authenticator_plain.get('usuario') == ticket_granting_ticket_plain.get('usuario'):
+                auth_timestamp = d.datetime.strptime(authenticator_plain.get('timestamp'), "%Y-%m-%d %H:%M:%S.%f")
+                tgt_timestamp = d.datetime.strptime(ticket_granting_ticket_plain.get('timestamp'), "%Y-%m-%d %H:%M:%S.%f")
+                elapsed_time_in_hours = divmod((auth_timestamp - tgt_timestamp).seconds, 3600)[0]
+    
+                if True:
+                    self.__chave_sessao_servico = ''.join([r.choice(st.ascii_letters + st.digits) for n in range(16)])[0:16]
+
+                    # prepare the service payload for client
+                    service_payload = {"usuario": str(authenticator_plain.get('usuario')), 
+                                        "servico": str(tgr.get('server_id')),
+                                        "timestamp": str(d.datetime.now()), 
+                                        "lifetime_of_ticket": "2", 
+                                        "service_session_key": str(self.__chave_sessao_servico)}
+
+                    # encrypt the service payload using service_secret_key
+                    service_ticket_encrypted = self.criptografar(cliente_socket, endereco, service_payload, dados["Senha"], self.master_key)
+
+                    # prepare the tgs payload for client
+                    tgs_ack_payload = {"servico": str(tgr.get('service_id')), 
+                                        "horario": str(d.datetime.now()), 
+                                        "lifetime_of_ticket": "2", 
+                                        "chave_sessao_servico": str(self.__chave_sessao_servico)}
+     
+                    # encrypt the tgs payload using tgs session key
+                    tgs_ack_encrypted = self.criptografar(cliente_socket, endereco, tgs_ack_payload, ticket_granting_ticket_plain.get('tgs_session_key'), self.master_key)
+
+                    print("TGS Ack and Service Ticket sent to client")
+                    return 1, {"tgs_ack_ticket": tgs_ack_encrypted, "service_ticket": service_ticket_encrypted}
+
 
     def iniciar_servidor(self):
         inicializar = ''
@@ -126,7 +192,6 @@ class Servidor_TGS:
                 self.enviar_arquivo(cliente_socket, endereco)
                 self.opcoes_servidor(cliente_socket, endereco)
             case 2:
-                self.chat(cliente_socket, endereco)
                 self.opcoes_servidor(cliente_socket, endereco)
             case 3:
                 resposta = self.mensagem_recebimento(cliente_socket, endereco).split("-")
@@ -138,119 +203,6 @@ class Servidor_TGS:
                     os.system('cls' if os.name == 'nt' else 'clear')
                     self.titulo()
                     print(f"{len(self.__clientes)} cliente(s) conectado(s)...")
-
-
-    def retornar_nome_arquivos(self, cliente_socket:s.socket, endereco:tuple):
-        os.system('cls' if os.name == 'nt' else 'clear')
-
-        file_paths = os.listdir("./Arquivos")
-        num_arquivos = len(file_paths)
-
-        self.mensagem_envio(cliente_socket, endereco, str(num_arquivos))
-        
-        confirmacao_tam = self.mensagem_recebimento(cliente_socket, endereco).split("-")
-        
-        if(confirmacao_tam[0] == "ERROR"):
-            self.logger.error("ERRO-1-Erro na requisição")
-            os.system('cls' if os.name == 'nt' else 'clear')
-            self.titulo()
-            print("Erro na Requisição")
-            t.sleep(2)
-            os.system('cls' if os.name == 'nt' else 'clear')
-            return
-        
-        elif(num_arquivos <= 0):
-            self.logger.error("ERRO-2-Nenhum arquivo no servidor")
-            os.system('cls' if os.name == 'nt' else 'clear')
-            self.titulo()
-            print("Nenhum arquivo no servidor")
-            t.sleep(2)
-            os.system('cls' if os.name == 'nt' else 'clear')
-            
-        else:
-            i = 0
-            while i < num_arquivos:
-                self.mensagem_envio(cliente_socket, endereco, file_paths[i])
-                ack = self.mensagem_recebimento(cliente_socket, endereco).split("-")
-                if (ack[1] == str(i+1)):
-                    i += 1
-                
-            while True:
-                nome_arquivo = self.mensagem_recebimento(cliente_socket, endereco)
-                    
-                if not os.path.exists(os.path.join("./Arquivos", nome_arquivo)):
-                    self.mensagem_envio(cliente_socket, endereco, "ERROR-3-Arquivo não encontrado!")
-                else:
-                    self.mensagem_envio(cliente_socket, endereco, 'OK-1-Confirmação')
-                    break
-            return nome_arquivo
-        
-        
-    def checksum_arquivo(self, nome_arquivo: str) -> str:
-        checksum = h.md5()
-        with open(os.path.join("./Arquivos", nome_arquivo), "rb") as file:
-            while data := file.read(self.__TAM_BUFFER):
-                checksum.update(data)
-
-        return checksum.hexdigest()
-        
-        
-    def enviar_arquivo(self, cliente_socket:s.socket, endereco:tuple):
-        nome_arquivo: str = self.retornar_nome_arquivos(cliente_socket, endereco)
-        num_pacotes: int = (os.path.getsize(os.path.join("./Arquivos", nome_arquivo)) // self.__TAM_BUFFER) + 1
-        num_digitos: int = len(str(num_pacotes))
-        num_buffer: int = num_digitos + 1 + 16 + 1 + self.__TAM_BUFFER
-        checksum: str = self.checksum_arquivo(nome_arquivo)
-
-        self.mensagem_envio(cliente_socket, endereco, f"OK-2-{num_pacotes}-{num_digitos}-{num_buffer}-{checksum}")
-        inicio = self.mensagem_recebimento(cliente_socket, endereco).split("-")
-        if inicio[0] != "OK":
-            return
-
-        with open(os.path.join("./Arquivos", nome_arquivo), "rb") as arquivo:
-            i = 0
-            while data := arquivo.read(self.__TAM_BUFFER):
-                hash_ = h.md5(data).digest()
-                data_criptografada = b" ".join([f"{i:{'0'}{num_digitos}}".encode(), hash_, data])
-                
-                try:
-                    cliente_socket.send(data_criptografada)
-                    self.logger.info(f"Destinatário: {endereco} - Enviado:  'Pacote {i+1}'")
-                except:
-                    self.logger.error(f"Cliente removido:  {endereco}")
-                    self.__clientes.remove(cliente_socket)
-                    break
-                
-                while self.mensagem_recebimento(cliente_socket, endereco) == "NOK":
-                    try:
-                        cliente_socket.send(data_criptografada)
-                        self.logger.warning(f"Destinatário: {endereco} - Enviado novamente:  'Pacote {i+1}'")
-                    except:
-                        self.logger.error(f"Cliente removido:  {endereco}")
-                        self.__clientes.remove(cliente_socket)
-                        break
-                i += 1
-        self.logger.info(f"'OK-4-Todos os {num_pacotes} foram enviados!'")
-
-
-    def chat(self, cliente_socket: s.socket, endereco: tuple):
-        os.system('cls' if os.name == 'nt' else 'clear')
-        self.titulo()
-        print("CHAT SERVIDOR X CLIENTE\n\n")
-        cliente_msg = ""
-        servidor_msg = ""
-        
-        while servidor_msg.lower() != "sair":
-            cliente_msg = self.chat_recebimento(cliente_socket, endereco)
-            print(f"<{endereco}> {cliente_msg}")
-            if cliente_msg.lower() == "sair":
-                self.logger.warning(f"'OK-6-Saída do Chat pelo Cliente!'")
-                break
-
-            servidor_msg = input("<Servidor> ")
-            self.chat_envio(cliente_socket, endereco, servidor_msg[:1024])
-            if servidor_msg.lower() == "sair":
-                self.logger.warning(f"'OK-6-Saída do Chat pelo Servidor!'")
 
 
     def run(self):
