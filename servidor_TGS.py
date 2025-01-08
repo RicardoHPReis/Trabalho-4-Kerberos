@@ -21,18 +21,18 @@ class Servidor_TGS:
         self.__PORTA_DO_SERVER = 7000
         self.__TAM_BUFFER = 2048
         self.__ENDERECO_IP = (self.__NOME_DO_SERVER, self.__PORTA_DO_SERVER)
-        self.__CHAVE_AS = "S0m3MA5T3RK3YY"
-        self.__CHAVE_ALEATORIA = ''.join([ri.choice(st.ascii_letters + st.digits) for n in range(16)])[0:16]
-        self.__CHAVE_SERVICO = "secretsecret"
-        self.__TEMPO_PERMITIDO = 1800
-        self.__numero_aleatorio = r.randint()
+        self.__CHAVE_AS = self.pesquisar("./data/AS_TGS.txt", "TGS")
+        self.__CHAVE_ALEATORIA = r.get_random_bytes(16).hex()
+        self.__chave_servico = ""
+        self.__tempo_permitido = 0
+        self.__numero_aleatorio = ri.randint(1000,10000)
         self.__chave_sessao_servico = ""
         self.__clientes = []
 
         self.__server_socket = s.socket(s.AF_INET, s.SOCK_STREAM)
         self.__server_socket.bind(self.__ENDERECO_IP)
         self.__server_socket.listen()
-        #self.__server_socket.settimeout(60)
+        self.__server_socket.settimeout(30)
         self.logger.info(f"Socket do servidor criado na porta: '{self.__PORTA_DO_SERVER}'")
         
     

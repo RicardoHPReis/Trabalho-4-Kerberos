@@ -1,9 +1,6 @@
 import socket as s
 import time as t
 import logging as l
-import datetime as d
-import hashlib as h
-import base64 as b64
 import json as j
 import hashlib as h
 import base64 as b64
@@ -62,6 +59,41 @@ class Cliente:
             self.__conexao_socket.close()
 
 
+    def ler_arquivo(self, caminho:str) -> list:
+        cabecalho = []
+        lista = []
+        with open(caminho, 'r') as arquivo:
+            for n, linha in enumerate(arquivo):
+                registro = linha.replace("\n","").split(' ')
+                if n == 0:
+                    cabecalho = registro
+                    continue
+                lista.append(registro)
+        
+        dicionario = []
+        for user in lista:
+            dicionario.append(dict(zip(cabecalho, user)))
+        
+        return dicionario
+
+
+    def pesquisar(self, caminho:str, texto:str) -> dict:
+        lista = self.ler_arquivo(caminho)
+        
+        for dic in lista:
+            for key, value in dic.items():
+                if value == texto:
+                    return dic
+        return {}
+
+
+    def escrever_arquivo(self, caminho:str, dados:dict) -> None:   
+        with open(os.path.join(caminho), "a") as arquivo:
+            arquivo.write(' '.join([''.join(i) for i in dados.values()]))
+            arquivo.write('\n')
+        arquivo.close()
+    
+    
     def criptografar(self, payload:bytes, chave:bytes) -> bytes:
         pad = lambda s: s + (AES.block_size - len(s) % AES.block_size) * chr(AES.block_size - len(s) % AES.block_size)
         
@@ -136,10 +168,40 @@ class Cliente:
             return
                 
 
+    def criar_usuario(self):
+        usuario_novo = False
+        while not usuario_novo:
+            usuario = input("Digite o seu usuário: ")
+            chave = input("Digite sua senha: ")
+            chave_hash = h.sha256(chave.encode()).hexdigest()
+            if self.pesquisar("./data/servidor_AS.txt", chave_hash) == {}:
+                usuario_novo = True
+        
+        dict_cliente = {"usuario": usuario, "senha": chave}
+        dict_AS = {"usuario": usuario, "senha": chave_hash}
+        
+        self.escrever_arquivo("./data/usuario.txt", dict_cliente)
+        self.escrever_arquivo("./data/servidor_AS.txt", dict_AS)
+
+
     def enviar_dados_AS(self):
-        self.__usuario = input("Digite o seu usuário: ")
-        self.__chave = h.sha256(input("Digite sua senha: ").encode()).digest()
-        self.__servico = input("Digite seu serviço: ")
+        usuario_encontrado = False
+        while not usuario_encontrado:
+            os.system('cls' if os.name == 'nt' else 'clear')
+            self.titulo()
+            self.__usuario = input("Digite o seu usuário: ")
+            self.__chave = h.sha256(input("Digite sua senha: ").encode()).digest()
+            self.__servico = input("Digite seu serviço: ")
+            
+            pesquisa = self.pesquisar("./data/servidor_AS.txt", self.__usuario)
+            if pesquisa == {}:
+                print("Usuário não encontrado!")
+                t.sleep(3)
+                continue
+            else:
+                if pesquisa['senha'] == self.__chave.hex():
+                    usuario_encontrado = True
+            
         
         dados_sensiveis = {"servico": self.__servico, "tempo_servico": self.__tempo_autorizado, "numero_aleatorio": self.__numero_aleatorio}
         dados_criptografados = self.criptografar(str(dados_sensiveis), self.__chave)
@@ -201,7 +263,7 @@ class Cliente:
                 self.opcoes_cliente()
             case 3:
                 self.mensagem_envio('OPTION-3-Criar novo cliente')
-                self.enviar_dados_AS()
+                self.criar_usuario()
                 self.opcoes_cliente()
             case 4:
                 self.mensagem_envio('OPTION-4-Desconectando do Servidor')

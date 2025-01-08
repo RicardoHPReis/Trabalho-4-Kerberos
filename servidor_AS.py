@@ -1,7 +1,6 @@
 import socket as s
 import time as t
 import datetime as d
-import string as st
 import logging as l
 import threading as th
 import hashlib as h
@@ -22,9 +21,9 @@ class Servidor_AS:
         self.__PORTA_DO_SERVER = 6000
         self.__TAM_BUFFER = 2048
         self.__ENDERECO_IP = (self.__NOME_DO_SERVER, self.__PORTA_DO_SERVER)
-        self.__CHAVE_CLIENTE = h.sha256("oi".encode()).digest()
+        self.__chave_cliente = ""
         self.__CHAVE_ALEATORIA = r.get_random_bytes(16)
-        self.__CHAVE_TGS = h.sha256("S0m3MA5T3RK3YY".encode()).digest()
+        self.__CHAVE_TGS = self.pesquisar("./data/AS_TGS.txt", "TGS")
         self.__numero_aleatorio = ri.randint(1000,10000)
         self.__chave_sessao_tgs = ""
         self.__ticket_tgs = ""
@@ -72,6 +71,41 @@ class Servidor_AS:
             self.__clientes.remove(cliente_socket)
 
     
+    def ler_arquivo(self, caminho:str) -> list:
+        cabecalho = []
+        lista = []
+        with open(caminho, 'r') as arquivo:
+            for n, linha in enumerate(arquivo):
+                registro = linha.replace("\n","").split(' ')
+                if n == 0:
+                    cabecalho = registro
+                    continue
+                lista.append(registro)
+        
+        dicionario = []
+        for user in lista:
+            dicionario.append(dict(zip(cabecalho, user)))
+        
+        return dicionario
+
+
+    def pesquisar(self, caminho:str, texto:str) -> dict:
+        lista = self.ler_arquivo(caminho)
+        
+        for dic in lista:
+            for key, value in dic.items():
+                if value == texto:
+                    return dic
+        return {}
+
+
+    def escrever_arquivo(self, caminho:str, dados:dict) -> None:   
+        with open(os.path.join(caminho), "a") as arquivo:
+            arquivo.write(' '.join([''.join(i) for i in dados.values()]))
+            arquivo.write('\n')
+        arquivo.close()
+    
+    
     def criptografar(self, payload:str, chave:bytes) -> bytes:
         pad = lambda s: s + (AES.block_size - len(s) % AES.block_size) * chr(AES.block_size - len(s) % AES.block_size)
         
@@ -103,11 +137,14 @@ class Servidor_AS:
     def verificar(self, cliente_socket:s.socket, endereco:tuple):
         recebido = self.mensagem_recebimento(cliente_socket, endereco)
         mensagem = j.loads(recebido.replace("'", "\""))
-        dados = self.descriptografar(mensagem['dados'].encode(), self.__CHAVE_CLIENTE)
+        
+        pesquisa = self.pesquisar("./data/servidor_AS.txt", mensagem['usuario'])
+        self.__chave_cliente = bytes.fromhex(pesquisa['senha'])
+        dados = self.descriptografar(mensagem['dados'].encode(), self.__chave_cliente)
         dados = j.loads(dados.replace("'", "\""))
         
         if dados != {}:
-            self.__chave_sessao_tgs = r.get_random_bytes(16)
+            self.__chave_sessao_tgs = r.get_random_bytes(16).hex()
             
             # TicketGrantingTicket payload
             ticket = {"usuario": mensagem['usuario'], "horario": d.datetime.now(), "tempo_servico": dados['tempo_servico'], "chave_sessao_tgs": self.__chave_sessao_tgs}
@@ -115,7 +152,7 @@ class Servidor_AS:
             
             # Authentication acknowledgement payload.
             auth_payload = {"chave_sessao_tgs": self.__chave_sessao_tgs, "horario": str(d.datetime.now()), "numero_aleatorio": dados['numero_aleatorio']}
-            auth_ack = self.criptografar(str(auth_payload), self.__CHAVE_CLIENTE)
+            auth_ack = self.criptografar(str(auth_payload), self.__chave_cliente)
             
             envio_final = {"auth": auth_ack.decode('utf8'), "ticket": self.__ticket_tgs.decode('utf8')}
             self.mensagem_envio(cliente_socket, endereco, str(envio_final))

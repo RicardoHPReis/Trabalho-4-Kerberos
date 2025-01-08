@@ -15,14 +15,14 @@ class Servico:
         self.__PORTA_DO_SERVER = 8000
         self.__TAM_BUFFER = 2048
         self.__ENDERECO_IP = (self.__NOME_DO_SERVER, self.__PORTA_DO_SERVER)
-        self.__CHAVE_SECRETA = "secretsecret"
+        self.__chave = ""
         
         self.__clientes = []        
 
         self.__server_socket = s.socket(s.AF_INET, s.SOCK_STREAM)
         self.__server_socket.bind(self.__ENDERECO_IP)
         self.__server_socket.listen()
-        #self.__server_socket.settimeout(60)
+        self.__server_socket.settimeout(30)
         self.logger.info(f"Socket do servidor criado na porta: '{self.__PORTA_DO_SERVER}'")
         
     
