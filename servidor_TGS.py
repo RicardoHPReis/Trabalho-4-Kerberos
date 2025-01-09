@@ -1,14 +1,14 @@
 import socket as s
 import time as t
 import datetime as d
-import string as st
 import logging as l
 import threading as th
 import hashlib as h
-from Crypto.Cipher import AES
-import Crypto.Random as r
+import base64 as b64
+import json as j
+from Cryptodome.Cipher import AES
+import Cryptodome.Random as r
 import Crypto.Random.random as ri
-from Crypto.Util.Padding import pad, unpad
 import os
 
 # Ticket
@@ -26,6 +26,7 @@ class Servidor_TGS:
         self.__chave_servico = ""
         self.__tempo_permitido = 0
         self.__numero_aleatorio = ri.randint(1000,10000)
+        self.__chave_randomica_AS = ""
         self.__chave_sessao_servico = ""
         self.__clientes = []
 
@@ -52,6 +53,46 @@ class Servidor_TGS:
         print("--------------------\n")
 
 
+    def iniciar_servidor(self):
+        inicializar = ''
+        iniciar_server = False
+        while inicializar == '':
+            os.system('cls' if os.name == 'nt' else 'clear')
+            self.titulo()
+            inicializar = input("Deseja inicializar o servidor [S/N] ? ").lower().strip()
+            match inicializar:
+                case 's':
+                    iniciar_server = True
+                    self.logger.info("Servidor foi inicializado!")
+                case 'sim':
+                    iniciar_server = True
+                    self.logger.info("Servidor foi inicializado!")
+                case 'n':
+                    iniciar_server = False
+                    self.logger.info("Servidor não foi inicializado!")
+                case 'não':
+                    iniciar_server = False
+                    self.logger.info("Servidor não foi inicializado!")
+                case _:
+                    print('A escolha precisa estar nas opções acima!')
+                    self.logger.warning("Resposta para o servidor não foi aceita!")
+                    t.sleep(2)
+                    inicializar = ''
+        return iniciar_server
+
+
+    def fechar_conexao(self, cliente_socket : s.socket, endereco : tuple):
+        resposta = self.mensagem_recebimento(cliente_socket, endereco).split("-")
+        if resposta[0] == "OK":
+            self.logger.warning(f"Cliente desconectado: {endereco}")
+            self.__clientes.remove(cliente_socket)
+            self.mensagem_envio(cliente_socket, endereco, 'OK-8-Desconectado')
+            
+            #os.system('cls' if os.name == 'nt' else 'clear')
+            #self.titulo()
+            #print(f"{len(self.__clientes)} cliente(s) conectado(s)...")
+
+
     def mensagem_envio(self, cliente_socket : s.socket, endereco : tuple, mensagem : str):
         try:
             cliente_socket.send(mensagem.encode())
@@ -71,36 +112,75 @@ class Servidor_TGS:
             self.__clientes.remove(cliente_socket)
         
     
-    def criptografar(self, cliente_socket:s.socket, endereco:tuple, payload, senha_secreta, vetor_inicial):
-        self.mensagem_envio(cliente_socket, endereco, f"{str(payload)} - {senha_secreta} - {vetor_inicial}")
+    def ler_arquivo(self, caminho:str) -> list:
+        cabecalho = []
+        lista = []
+        with open(caminho, 'r') as arquivo:
+            for n, linha in enumerate(arquivo):
+                registro = linha.replace("\n","").split(' ')
+                if n == 0:
+                    cabecalho = registro
+                    continue
+                lista.append(registro)
         
-        padded_senha_secreta = senha_secreta.ljust((len(senha_secreta) // 16 + 1) * 16).encode('utf8')
-        padded_vetor_inicial = vetor_inicial.ljust((len(vetor_inicial) // 16 + 1) * 16).encode('utf8')
+        dicionario = []
+        for user in lista:
+            dicionario.append(dict(zip(cabecalho, user)))
         
-        cifra = AES.new(padded_senha_secreta, AES.MODE_CFB, padded_vetor_inicial)
-        criptografado_payload = cifra.encrypt(str(payload).encode('utf8'))
-        self.mensagem_envio(cliente_socket, endereco, str(criptografado_payload.hex()))
-        return criptografado_payload.hex()
+        return dicionario
 
 
-    def descriptografar(self, cliente_socket:s.socket, endereco:tuple, payload, senha_secreta, vetor_inicial):
-        self.mensagem_envio(cliente_socket, endereco, f"{str(payload)} - {senha_secreta} - {vetor_inicial}")
-        payload_bytes = bytes.fromhex(payload)
+    def pesquisar(self, caminho:str, texto:str) -> dict:
+        lista = self.ler_arquivo(caminho)
         
-        padded_senha_secreta = senha_secreta.ljust((len(senha_secreta) // 16 + 1) * 16).encode('utf8')
-        padded_vetor_inicial = vetor_inicial.ljust((len(vetor_inicial) // 16 + 1) * 16).encode('utf8')
+        for dic in lista:
+            for key, value in dic.items():
+                if value == texto:
+                    return dic
+        return {}
+
+
+    def escrever_arquivo(self, caminho:str, dados:dict) -> None:   
+        with open(os.path.join(caminho), "a") as arquivo:
+            arquivo.write(' '.join([''.join(i) for i in dados.values()]))
+            arquivo.write('\n')
+        arquivo.close()
+    
+    
+    def criptografar(self, payload:str, chave:str) -> bytes:
+        pad = lambda s: s + (AES.block_size - len(s) % AES.block_size) * chr(AES.block_size - len(s) % AES.block_size)
         
-        cifra = AES.new(padded_senha_secreta, AES.MODE_CFB, padded_vetor_inicial)
-        payload_descriptografado = cifra.decrypt(payload_bytes)
-        descriptografado_str = payload_descriptografado.decode('utf8').rstrip()
+        chave = bytes.fromhex(chave)
+        payload = b64.b64encode(pad(payload).encode())
+        iv = r.get_random_bytes(AES.block_size)
+        cifra = AES.new(chave, AES.MODE_CFB, iv)
+        texto_cripto = b64.b64encode(iv + cifra.encrypt(payload))
         
-        self.mensagem_envio(cliente_socket, endereco, str(descriptografado_str))
+        iv_2 = r.new().read(AES.block_size)
+        aes = AES.new(chave, AES.MODE_CFB, iv_2)
+        criptografado = b64.b64encode(iv_2 + aes.encrypt(texto_cripto))
+        return criptografado
+
+
+    def descriptografar(self, criptografado:str, chave:str) -> str:
+        unpad = lambda s: s[:-ord(s[-1:])]
         
-        return descriptografado_str 
+        criptografado = criptografado.encode()
+        chave = bytes.fromhex(chave)
+        criptografado = b64.b64decode(criptografado)
+        iv_2 = criptografado[:AES.block_size]
+        aes = AES.new(chave, AES.MODE_CFB, iv_2)
+        texto_cripto = b64.b64decode(aes.decrypt(criptografado[AES.block_size:]))
+        
+        iv = texto_cripto[:AES.block_size]
+        cifra = AES.new(chave, AES.MODE_CFB, iv)
+        texto = unpad(b64.b64decode(cifra.decrypt(texto_cripto[AES.block_size:])).decode('utf8'))
+        return texto
 
 
     def verificar(self, cliente_socket:s.socket, endereco:tuple, authenticator, tgt, tgr):
-        mensagem = self.mensagem_recebimento(cliente_socket, endereco)
+        recebido = self.mensagem_recebimento(cliente_socket, endereco)
+        mensagem = j.loads(recebido.replace("'", "\""))
         dados = self.descriptografar(cliente_socket, endereco, mensagem, self.__CHAVE_CLIENTE)
         dados = dict(dados)
         
@@ -146,63 +226,8 @@ class Servidor_TGS:
 
                     print("TGS Ack and Service Ticket sent to client")
                     return 1, {"tgs_ack_ticket": tgs_ack_encrypted, "service_ticket": service_ticket_encrypted}
-
-
-    def iniciar_servidor(self):
-        inicializar = ''
-        iniciar_server = False
-        while inicializar == '':
-            os.system('cls' if os.name == 'nt' else 'clear')
-            self.titulo()
-            inicializar = input("Deseja inicializar o servidor [S/N] ? ").lower().strip()
-            match inicializar:
-                case 's':
-                    iniciar_server = True
-                    self.logger.info("Servidor foi inicializado!")
-                case 'sim':
-                    iniciar_server = True
-                    self.logger.info("Servidor foi inicializado!")
-                case 'n':
-                    iniciar_server = False
-                    self.logger.info("Servidor não foi inicializado!")
-                case 'não':
-                    iniciar_server = False
-                    self.logger.info("Servidor não foi inicializado!")
-                case _:
-                    print('A escolha precisa estar nas opções acima!')
-                    self.logger.warning("Resposta para o servidor não foi aceita!")
-                    t.sleep(2)
-                    inicializar = ''
-        return iniciar_server
-
-
-    def opcoes_servidor(self, cliente_socket:s.socket, endereco:tuple):
-        os.system('cls' if os.name == 'nt' else 'clear')
-        self.titulo()
-        print(f"{len(self.__clientes)} cliente(s) conectado(s)...")
-        
-        opcao = 0
-        cliente_opcao = self.mensagem_recebimento(cliente_socket, endereco).split("-")
-        
-        if cliente_opcao[0] == 'OPTION':
-            opcao = int(cliente_opcao[1])
-            
-        match opcao:
-            case 1:
-                self.enviar_arquivo(cliente_socket, endereco)
-                self.opcoes_servidor(cliente_socket, endereco)
-            case 2:
-                self.opcoes_servidor(cliente_socket, endereco)
-            case 3:
-                resposta = self.mensagem_recebimento(cliente_socket, endereco).split("-")
-                if resposta[0] == "OK":
-                    self.logger.warning(f"Cliente desconectado: {endereco}")
-                    self.__clientes.remove(cliente_socket)
-                    self.mensagem_envio(cliente_socket, endereco, 'OK-8-Desconectado')
-                    
-                    os.system('cls' if os.name == 'nt' else 'clear')
-                    self.titulo()
-                    print(f"{len(self.__clientes)} cliente(s) conectado(s)...")
+                
+        self.fechar_conexao(cliente_socket, endereco)
 
 
     def run(self):
@@ -216,7 +241,7 @@ class Servidor_TGS:
             cliente_socket, endereco = self.__server_socket.accept()
             self.__clientes.append(cliente_socket)
             
-            thread = th.Thread(target=self.opcoes_servidor, args=(cliente_socket, endereco), daemon=True)
+            thread = th.Thread(target=self.verificar, args=(cliente_socket, endereco), daemon=True)
             thread.start()
         
 

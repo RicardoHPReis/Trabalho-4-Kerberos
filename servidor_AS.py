@@ -22,10 +22,9 @@ class Servidor_AS:
         self.__TAM_BUFFER = 2048
         self.__ENDERECO_IP = (self.__NOME_DO_SERVER, self.__PORTA_DO_SERVER)
         self.__chave_cliente = ""
-        self.__CHAVE_ALEATORIA = r.get_random_bytes(16)
-        self.__CHAVE_TGS = self.pesquisar("./data/AS_TGS.txt", "TGS")
+        self.__CHAVE_TGS = self.pesquisar("./data/AS_TGS.txt", "TGS")['senha']
         self.__numero_aleatorio = ri.randint(1000,10000)
-        self.__chave_sessao_tgs = ""
+        self.__chave_sessao_tgs = r.get_random_bytes(16).hex()
         self.__ticket_tgs = ""
         self.__clientes = []
 
@@ -50,6 +49,46 @@ class Servidor_AS:
         print("--------------------")
         print("    SERVIDOR AS")
         print("--------------------\n")
+
+
+    def iniciar_servidor(self):
+        inicializar = ''
+        iniciar_server = False
+        while inicializar == '':
+            os.system('cls' if os.name == 'nt' else 'clear')
+            self.titulo()
+            inicializar = input("Deseja inicializar o servidor [S/N] ? ").lower().strip()
+            match inicializar:
+                case 's':
+                    iniciar_server = True
+                    self.logger.info("Servidor foi inicializado!")
+                case 'sim':
+                    iniciar_server = True
+                    self.logger.info("Servidor foi inicializado!")
+                case 'n':
+                    iniciar_server = False
+                    self.logger.info("Servidor não foi inicializado!")
+                case 'não':
+                    iniciar_server = False
+                    self.logger.info("Servidor não foi inicializado!")
+                case _:
+                    print('A escolha precisa estar nas opções acima!')
+                    self.logger.warning("Resposta para o servidor não foi aceita!")
+                    t.sleep(2)
+                    inicializar = ''
+        return iniciar_server
+
+
+    def fechar_conexao(self, cliente_socket : s.socket, endereco : tuple):
+        resposta = self.mensagem_recebimento(cliente_socket, endereco).split("-")
+        if resposta[0] == "OK":
+            self.logger.warning(f"Cliente desconectado: {endereco}")
+            self.__clientes.remove(cliente_socket)
+            self.mensagem_envio(cliente_socket, endereco, 'OK-8-Desconectado')
+            
+            #os.system('cls' if os.name == 'nt' else 'clear')
+            #self.titulo()
+            #print(f"{len(self.__clientes)} cliente(s) conectado(s)...")
 
 
     def mensagem_envio(self, cliente_socket : s.socket, endereco : tuple, mensagem : str):
@@ -106,9 +145,10 @@ class Servidor_AS:
         arquivo.close()
     
     
-    def criptografar(self, payload:str, chave:bytes) -> bytes:
+    def criptografar(self, payload:str, chave:str) -> str:
         pad = lambda s: s + (AES.block_size - len(s) % AES.block_size) * chr(AES.block_size - len(s) % AES.block_size)
         
+        chave = bytes.fromhex(chave)
         payload = b64.b64encode(pad(payload).encode('utf8'))
         iv = r.get_random_bytes(AES.block_size)
         cifra = AES.new(chave, AES.MODE_CFB, iv)
@@ -117,21 +157,23 @@ class Servidor_AS:
         iv_2 = r.new().read(AES.block_size)
         aes = AES.new(chave, AES.MODE_CFB, iv_2)
         criptografado = b64.b64encode(iv_2 + aes.encrypt(texto_cripto))
-        return criptografado
+        return criptografado.decode('utf8')
 
 
-    def descriptografar(self, criptografado:bytes, chave:bytes) -> str:
+    def descriptografar(self, criptografado:str, chave:str) -> str:
         unpad = lambda s: s[:-ord(s[-1:])]
         
+        criptografado = criptografado.encode()
+        chave = bytes.fromhex(chave)
         criptografado = b64.b64decode(criptografado)
         iv_2 = criptografado[:AES.block_size]
         aes = AES.new(chave, AES.MODE_CFB, iv_2)
-        texto_cripto = b64.b64decode(aes.decrypt(criptografado[AES.block_size:]))
+        payload_cripto = b64.b64decode(aes.decrypt(criptografado[AES.block_size:]))
         
-        iv = texto_cripto[:AES.block_size]
+        iv = payload_cripto[:AES.block_size]
         cifra = AES.new(chave, AES.MODE_CFB, iv)
-        texto = unpad(b64.b64decode(cifra.decrypt(texto_cripto[AES.block_size:])).decode('utf8'))
-        return texto
+        payload = unpad(b64.b64decode(cifra.decrypt(payload_cripto[AES.block_size:])).decode('utf8'))
+        return payload
 
 
     def verificar(self, cliente_socket:s.socket, endereco:tuple):
@@ -139,82 +181,25 @@ class Servidor_AS:
         mensagem = j.loads(recebido.replace("'", "\""))
         
         pesquisa = self.pesquisar("./data/servidor_AS.txt", mensagem['usuario'])
-        self.__chave_cliente = bytes.fromhex(pesquisa['senha'])
-        dados = self.descriptografar(mensagem['dados'].encode(), self.__chave_cliente)
+        self.__chave_cliente = pesquisa['senha']
+        dados = self.descriptografar(mensagem['dados'], self.__chave_cliente)
         dados = j.loads(dados.replace("'", "\""))
         
         if dados != {}:
             self.__chave_sessao_tgs = r.get_random_bytes(16).hex()
             
-            # TicketGrantingTicket payload
+            # Ticket do TGS
             ticket = {"usuario": mensagem['usuario'], "horario": d.datetime.now(), "tempo_servico": dados['tempo_servico'], "chave_sessao_tgs": self.__chave_sessao_tgs}
             self.__ticket_tgs = self.criptografar(str(ticket), self.__CHAVE_TGS)
             
-            # Authentication acknowledgement payload.
+            # Dados Autenticação.
             auth_payload = {"chave_sessao_tgs": self.__chave_sessao_tgs, "horario": str(d.datetime.now()), "numero_aleatorio": dados['numero_aleatorio']}
             auth_ack = self.criptografar(str(auth_payload), self.__chave_cliente)
             
-            envio_final = {"auth": auth_ack.decode('utf8'), "ticket": self.__ticket_tgs.decode('utf8')}
+            envio_final = {"auth": auth_ack, "ticket": self.__ticket_tgs}
             self.mensagem_envio(cliente_socket, endereco, str(envio_final))
-
-
-    def iniciar_servidor(self):
-        inicializar = ''
-        iniciar_server = False
-        while inicializar == '':
-            os.system('cls' if os.name == 'nt' else 'clear')
-            self.titulo()
-            inicializar = input("Deseja inicializar o servidor [S/N] ? ").lower().strip()
-            match inicializar:
-                case 's':
-                    iniciar_server = True
-                    self.logger.info("Servidor foi inicializado!")
-                case 'sim':
-                    iniciar_server = True
-                    self.logger.info("Servidor foi inicializado!")
-                case 'n':
-                    iniciar_server = False
-                    self.logger.info("Servidor não foi inicializado!")
-                case 'não':
-                    iniciar_server = False
-                    self.logger.info("Servidor não foi inicializado!")
-                case _:
-                    print('A escolha precisa estar nas opções acima!')
-                    self.logger.warning("Resposta para o servidor não foi aceita!")
-                    t.sleep(2)
-                    inicializar = ''
-        return iniciar_server
-
-
-    def opcoes_servidor(self, cliente_socket:s.socket, endereco:tuple):
-        os.system('cls' if os.name == 'nt' else 'clear')
-        self.titulo()
-        print(f"{len(self.__clientes)} cliente(s) conectado(s)...")
-        
-        opcao = 0
-        cliente_opcao = self.mensagem_recebimento(cliente_socket, endereco).split("-")
-        
-        if cliente_opcao[0] == 'OPTION':
-            opcao = int(cliente_opcao[1])
             
-        match opcao:
-            case 1:
-                self.verificar(cliente_socket, endereco)
-                self.opcoes_servidor(cliente_socket, endereco)
-            case 2:
-                self.opcoes_servidor(cliente_socket, endereco)
-            case 3:
-                self.opcoes_servidor(cliente_socket, endereco)
-            case 4:
-                resposta = self.mensagem_recebimento(cliente_socket, endereco).split("-")
-                if resposta[0] == "OK":
-                    self.logger.warning(f"Cliente desconectado: {endereco}")
-                    self.__clientes.remove(cliente_socket)
-                    self.mensagem_envio(cliente_socket, endereco, 'OK-8-Desconectado')
-                    
-                    os.system('cls' if os.name == 'nt' else 'clear')
-                    self.titulo()
-                    print(f"{len(self.__clientes)} cliente(s) conectado(s)...")
+        self.fechar_conexao(cliente_socket, endereco)
 
 
     def run(self):
@@ -227,8 +212,8 @@ class Servidor_AS:
         while iniciar_server:
             cliente_socket, endereco = self.__server_socket.accept()
             self.__clientes.append(cliente_socket)
-            
-            thread = th.Thread(target=self.opcoes_servidor, args=(cliente_socket, endereco), daemon=True)
+            #print(f"{len(self.__clientes)} cliente(s) conectado(s)...")
+            thread = th.Thread(target=self.verificar, args=(cliente_socket, endereco), daemon=True)
             thread.start()
         
 
