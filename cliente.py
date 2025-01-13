@@ -19,10 +19,12 @@ class Cliente:
         self.__porta_do_server = 0
         self.__endereco_IP = (self.__NOME_DO_SERVER, self.__porta_do_server)
         self.__TAM_BUFFER = 2048
+        
         self.__usuario = ""
-        self.__servico = ""
         self.__chave = ""
+        self.__servico = ""
         self.__chave_randomico_AS = ""
+        self.__chave_randomico_TGS = ""
         self.__TEMPO_SERVICO = 3600
         self.__tempo_autorizado = 0
         self.__ticket_as = ""
@@ -39,18 +41,18 @@ class Cliente:
     def opcoes_cliente(self):
         #os.system('cls' if os.name == 'nt' else 'clear')
         self.titulo()
-        print('1) Conectar no Kerberos.')
-        print('2) Conectar no Serviço.')
-        print('3) Criar novo cliente.')
-        print('4) Criar novo serviço.')
-        print('5) Sair.\n')
+        print("1) Conectar no Kerberos.")
+        print("2) Conectar no Serviço.")
+        print("3) Criar novo cliente.")
+        print("4) Criar novo serviço.")
+        print("5) Sair.\n")
         
         opcao = int(input("Escolha uma opção: "))
         match opcao:
             case 1:
                 self.enviar_dados_AS()
-                #self.enviar_dados_TGS()
-                #self.enviar_dados_servico()
+                self.enviar_dados_TGS()
+                self.enviar_dados_servico()
                 self.opcoes_cliente()
             case 2:
                 self.enviar_dados_servico()
@@ -147,11 +149,11 @@ class Cliente:
         arquivo.close()
     
     
-    def criptografar(self, payload:str, chave:str) -> bytes:
+    def criptografar(self, payload:str, chave:str) -> str:
         pad = lambda s: s + (AES.block_size - len(s) % AES.block_size) * chr(AES.block_size - len(s) % AES.block_size)
         
         chave = bytes.fromhex(chave)
-        payload = b64.b64encode(pad(payload).encode())
+        payload = b64.b64encode(pad(payload).encode('utf8'))
         iv = r.get_random_bytes(AES.block_size)
         cifra = AES.new(chave, AES.MODE_CFB, iv)
         texto_cripto = b64.b64encode(iv + cifra.encrypt(payload))
@@ -159,7 +161,7 @@ class Cliente:
         iv_2 = r.new().read(AES.block_size)
         aes = AES.new(chave, AES.MODE_CFB, iv_2)
         criptografado = b64.b64encode(iv_2 + aes.encrypt(texto_cripto))
-        return criptografado
+        return criptografado.decode('utf8')
 
 
     def descriptografar(self, criptografado:str, chave:str) -> str:
@@ -170,12 +172,12 @@ class Cliente:
         criptografado = b64.b64decode(criptografado)
         iv_2 = criptografado[:AES.block_size]
         aes = AES.new(chave, AES.MODE_CFB, iv_2)
-        texto_cripto = b64.b64decode(aes.decrypt(criptografado[AES.block_size:]))
+        payload_cripto = b64.b64decode(aes.decrypt(criptografado[AES.block_size:]))
         
-        iv = texto_cripto[:AES.block_size]
+        iv = payload_cripto[:AES.block_size]
         cifra = AES.new(chave, AES.MODE_CFB, iv)
-        texto = unpad(b64.b64decode(cifra.decrypt(texto_cripto[AES.block_size:])).decode('utf8'))
-        return texto
+        payload = unpad(b64.b64decode(cifra.decrypt(payload_cripto[AES.block_size:])).decode('utf8'))
+        return payload
 
 
     def fechar_conexao(self):
@@ -227,6 +229,8 @@ class Cliente:
 
 
     def enviar_dados_AS(self):
+        self.conectar_servidor(6000)
+        
         usuario_encontrado = False
         while not usuario_encontrado:
             os.system('cls' if os.name == 'nt' else 'clear')
@@ -235,30 +239,31 @@ class Cliente:
             self.__chave = h.sha256(input("Digite sua senha: ").encode()).hexdigest()
             self.__servico = input("Digite seu serviço: ")
             
-            pesquisa = self.pesquisar("./data/servidor_AS.txt", self.__usuario)
-            if pesquisa == {}:
-                print("Usuário não encontrado!")
-                t.sleep(3)
-                continue
-            else:
-                if pesquisa['senha'] == self.__chave:
-                    usuario_encontrado = True
+            dados_sensiveis = {"servico": self.__servico, 
+                               "tempo_servico": self.__TEMPO_SERVICO, 
+                               "numero_aleatorio": self.__numero_aleatorio}
+            dados_criptografados = self.criptografar(str(dados_sensiveis), self.__chave)
             
-        self.conectar_servidor(6000)
-        
-        dados_sensiveis = {"servico": self.__servico, "tempo_servico": self.__tempo_autorizado, "numero_aleatorio": self.__numero_aleatorio}
-        dados_criptografados = self.criptografar(str(dados_sensiveis), self.__chave)
-        envio = {"usuario": self.__usuario, "dados": dados_criptografados.decode('utf8')}
-        self.mensagem_envio(str(envio))
+            envio = {"usuario": self.__usuario, 
+                     "dados": dados_criptografados}
+            self.mensagem_envio(str(envio))
+
+            resposta = self.mensagem_recebimento().split("-")
+            if resposta[0] == "OK":
+                print(resposta[2])
+                t.sleep(3)
+                usuario_encontrado = True
+            else:
+                print(resposta[2])
+                t.sleep(3)
         
         resposta = self.mensagem_recebimento()
         resposta = j.loads(resposta.replace("'", "\""))
         autenticacao = self.descriptografar(resposta['auth'], self.__chave)
         autenticacao = j.loads(autenticacao.replace("'", "\""))
-        print(autenticacao)
+        
         self.__chave_randomico_AS = autenticacao['chave_sessao_tgs']
         self.__ticket_as = resposta['ticket']
-        print(self.__ticket_as)
         
         self.fechar_conexao()
         
@@ -267,23 +272,25 @@ class Cliente:
         self.conectar_servidor(7000)
         
         self.__numero_aleatorio = ri.randint(1000, 10000)
-        dados_sensiveis = {"usuario": self.__usuario, "servico": self.__servico, "tempo_servico": self.__tempo_autorizado, "numero_aleatorio": self.__numero_aleatorio}
+        dados_sensiveis = {"usuario": self.__usuario, 
+                           "servico": self.__servico, 
+                           "tempo_servico": self.__TEMPO_SERVICO, 
+                           "numero_aleatorio": self.__numero_aleatorio}
         dados_criptografados = self.criptografar(str(dados_sensiveis), self.__chave_randomico_AS)
-        envio = {"dados": dados_criptografados, "ticket": self.__ticket_as}
+        
+        envio = {"dados": dados_criptografados, 
+                 "ticket": self.__ticket_as}
         self.mensagem_envio(str(envio))
         
         resposta = self.mensagem_recebimento()
         resposta = j.loads(resposta.replace("'", "\""))
-        autenticacao = self.descriptografar(resposta['auth'], self.__chave)
-        print(autenticacao)
-        self.__chave_randomico_AS = autenticacao['chave_sessao_tgs']
-        self.__ticket_as = resposta['ticket']
-        print(self.__ticket_as)
+        
+        tgs_ack = self.descriptografar(resposta['tgs_ack'], self.__chave_randomico_AS)
+        tgs_ack = j.loads(tgs_ack.replace("'", "\""))
 
-        # construct the ticket grant request for service payload
-        tgr_payload = {"servico": service_id, "lifetime_of_ticket": "2"}
-        # payloads put together to send to ticket granting sever
-        payload = {"authenticator": auth_cipher, "tgr": str(tgr_payload), "tgt": ticket_granting_ticket}
+        self.__chave_randomico_TGS = tgs_ack['chave_sessao_servico']
+        self.__tempo_autorizado = tgs_ack['tempo_servico']
+        self.__ticket_tgs = resposta['ticket']
         
         self.fechar_conexao()
     
@@ -292,16 +299,20 @@ class Cliente:
         self.conectar_servidor(8000)
         
         self.__numero_aleatorio = ri.randint(1000, 10000)
-        dados_vulneraveis = {"usuario": str(self.__usuario), "servico": str(self.__servico), "tempo_servico": self.__tempo_autorizado, "numero_aleatorio": self.__numero_aleatorio}
-        dados = self.criptografar(dados_vulneraveis, self.__chave)
-        self.mensagem_envio(dados)
+        dados_sensiveis = {"usuario": self.__usuario, 
+                           "servico": self.__servico, 
+                           "tempo_servico": self.__tempo_autorizado, 
+                           "numero_aleatorio": self.__numero_aleatorio}
+        dados_criptografados = self.criptografar(str(dados_sensiveis), self.__chave_randomico_TGS)
         
-        # We need to decrypt the tgs_ack_ticket to get the service_session_key which we will use to communicate 
-        # with the service from here on out
-        tgs_ack_ticket = self.descriptografar(tgs_recieved_payload.get('tgs_ack_ticket'), tgs_session_key)
-        service_ticket = tgs_recieved_payload.get("service_ticket")
-        session_key = tgs_ack_ticket.get("service_session_key")
-        service_payload = {"service_ticket": service_ticket, "username": user_name}
+        envio = {"dados": dados_criptografados, 
+                 "ticket": self.__ticket_tgs}
+        self.mensagem_envio(str(envio))
+        
+        recebimento = self.mensagem_recebimento()
+        resposta = self.descriptografar(recebimento, self.__chave_randomico_TGS)
+        resposta = j.loads(resposta.replace("'", "\""))
+        print(resposta)
         
         self.fechar_conexao()
 

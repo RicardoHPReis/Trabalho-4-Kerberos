@@ -21,12 +21,13 @@ class Servidor_AS:
         self.__PORTA_DO_SERVER = 6000
         self.__TAM_BUFFER = 2048
         self.__ENDERECO_IP = (self.__NOME_DO_SERVER, self.__PORTA_DO_SERVER)
+        self.__clientes = []
+        
         self.__chave_cliente = ""
         self.__CHAVE_TGS = self.pesquisar("./data/AS_TGS.txt", "TGS")['senha']
         self.__numero_aleatorio = ri.randint(1000,10000)
         self.__chave_sessao_tgs = r.get_random_bytes(16).hex()
         self.__ticket_tgs = ""
-        self.__clientes = []
 
         self.__server_socket = s.socket(s.AF_INET, s.SOCK_STREAM)
         self.__server_socket.bind(self.__ENDERECO_IP)
@@ -51,34 +52,6 @@ class Servidor_AS:
         print("--------------------\n")
 
 
-    def iniciar_servidor(self):
-        inicializar = ''
-        iniciar_server = False
-        while inicializar == '':
-            os.system('cls' if os.name == 'nt' else 'clear')
-            self.titulo()
-            inicializar = input("Deseja inicializar o servidor [S/N] ? ").lower().strip()
-            match inicializar:
-                case 's':
-                    iniciar_server = True
-                    self.logger.info("Servidor foi inicializado!")
-                case 'sim':
-                    iniciar_server = True
-                    self.logger.info("Servidor foi inicializado!")
-                case 'n':
-                    iniciar_server = False
-                    self.logger.info("Servidor não foi inicializado!")
-                case 'não':
-                    iniciar_server = False
-                    self.logger.info("Servidor não foi inicializado!")
-                case _:
-                    print('A escolha precisa estar nas opções acima!')
-                    self.logger.warning("Resposta para o servidor não foi aceita!")
-                    t.sleep(2)
-                    inicializar = ''
-        return iniciar_server
-
-
     def fechar_conexao(self, cliente_socket : s.socket, endereco : tuple):
         resposta = self.mensagem_recebimento(cliente_socket, endereco).split("-")
         if resposta[0] == "OK":
@@ -86,9 +59,9 @@ class Servidor_AS:
             self.__clientes.remove(cliente_socket)
             self.mensagem_envio(cliente_socket, endereco, 'OK-8-Desconectado')
             
-            #os.system('cls' if os.name == 'nt' else 'clear')
-            #self.titulo()
-            #print(f"{len(self.__clientes)} cliente(s) conectado(s)...")
+            os.system('cls' if os.name == 'nt' else 'clear')
+            self.titulo()
+            print(f"{len(self.__clientes)} cliente(s) conectado(s)...")
 
 
     def mensagem_envio(self, cliente_socket : s.socket, endereco : tuple, mensagem : str):
@@ -177,26 +150,44 @@ class Servidor_AS:
 
 
     def verificar(self, cliente_socket:s.socket, endereco:tuple):
-        recebido = self.mensagem_recebimento(cliente_socket, endereco)
-        mensagem = j.loads(recebido.replace("'", "\""))
+        os.system('cls' if os.name == 'nt' else 'clear')
+        self.titulo()
+        print(f"{len(self.__clientes)} cliente(s) conectado(s)...")
         
-        pesquisa = self.pesquisar("./data/servidor_AS.txt", mensagem['usuario'])
-        self.__chave_cliente = pesquisa['senha']
-        dados = self.descriptografar(mensagem['dados'], self.__chave_cliente)
-        dados = j.loads(dados.replace("'", "\""))
+        usuario_encontrado = False
+        while not usuario_encontrado:
+            recebido = self.mensagem_recebimento(cliente_socket, endereco)
+            mensagem = j.loads(recebido.replace("'", "\""))
+            
+            pesquisa = self.pesquisar("./data/servidor_AS.txt", mensagem['usuario'])
+            if pesquisa == {}:
+                self.mensagem_envio(cliente_socket, endereco, "ERRO-1-Usuário não encontrado")
+            else:
+                try:
+                    dados = self.descriptografar(mensagem['dados'], pesquisa['senha'])
+                    dados = j.loads(dados.replace("'", "\""))
+                    self.__chave_cliente = pesquisa['senha']
+                    self.mensagem_envio(cliente_socket, endereco, "OK-1-Usuário autenticado")
+                    usuario_encontrado = True
+                except:
+                    self.mensagem_envio(cliente_socket, endereco, "ERRO-2-Senha incorreta")
         
         if dados != {}:
             self.__chave_sessao_tgs = r.get_random_bytes(16).hex()
             
-            # Ticket do TGS
-            ticket = {"usuario": mensagem['usuario'], "horario": d.datetime.now(), "tempo_servico": dados['tempo_servico'], "chave_sessao_tgs": self.__chave_sessao_tgs}
+            ticket = {"usuario": mensagem['usuario'], 
+                      "horario": str(d.datetime.now()), 
+                      "tempo_servico": dados['tempo_servico'], 
+                      "chave_sessao_tgs": self.__chave_sessao_tgs}
             self.__ticket_tgs = self.criptografar(str(ticket), self.__CHAVE_TGS)
             
-            # Dados Autenticação.
-            auth_payload = {"chave_sessao_tgs": self.__chave_sessao_tgs, "horario": str(d.datetime.now()), "numero_aleatorio": dados['numero_aleatorio']}
+            auth_payload = {"chave_sessao_tgs": self.__chave_sessao_tgs, 
+                            "horario": str(d.datetime.now()), 
+                            "numero_aleatorio": dados['numero_aleatorio']}
             auth_ack = self.criptografar(str(auth_payload), self.__chave_cliente)
             
-            envio_final = {"auth": auth_ack, "ticket": self.__ticket_tgs}
+            envio_final = {"auth": auth_ack, 
+                           "ticket": self.__ticket_tgs}
             self.mensagem_envio(cliente_socket, endereco, str(envio_final))
             
         self.fechar_conexao(cliente_socket, endereco)
@@ -204,15 +195,12 @@ class Servidor_AS:
 
     def run(self):
         os.system('cls' if os.name == 'nt' else 'clear')
-        iniciar_server = self.iniciar_servidor()
-        os.system('cls' if os.name == 'nt' else 'clear')
         self.titulo()
         print('Esperando resposta')
 
-        while iniciar_server:
+        while True:
             cliente_socket, endereco = self.__server_socket.accept()
             self.__clientes.append(cliente_socket)
-            #print(f"{len(self.__clientes)} cliente(s) conectado(s)...")
             thread = th.Thread(target=self.verificar, args=(cliente_socket, endereco), daemon=True)
             thread.start()
         
